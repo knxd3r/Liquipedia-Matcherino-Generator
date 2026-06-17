@@ -11,10 +11,17 @@ def generate_bracket_id():
 def sanitize(text: str) -> str:
     """
     MediaWiki safe string:
+    Removes everything before '|'
     """
     if text is None:
         return "TBD"
-    return str(text).replace("|", "{{!}}")
+    
+    text = str(text)
+    
+    if '|' in text:
+        text = text.split('|', 1)[1].strip()
+    
+    return text.strip()
 
 
 def build_bracket(
