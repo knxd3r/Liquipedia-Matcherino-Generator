@@ -21,7 +21,7 @@ def sanitize(text: str) -> str:
     if '|' in text:
         text = text.split('|', 1)[1].strip()
     
-    return text.strip()
+    return text
 
 
 def build_bracket(
