@@ -318,7 +318,7 @@ def generate_page(data):
 ==About==
 ===Format===
 * {data['format_type']} bracket
-* Grand Final Match are {{{{Abbr/Bo{data['grand_final_bo']}xBo3}}}}
+* Grand Final is {{{{Abbr/Bo{data['grand_final_bo']}xBo3}}}}
 * All other matches are {{{{Abbr/Bo{data['other_matches_bo']}xBo3}}}}
 
 ===Prize Pool===
