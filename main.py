@@ -1,26 +1,46 @@
+import logging
 from matcherino_api import get_tournament_data
 from liquipedia_generator import generate_page
 
-def main():
-    url = input("Вставьте ссылку Matcherino: ").strip()
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-    print("Получаю данные турнира...")
 
-    data = get_tournament_data(url)
+def main(debug=False):
+    url = input("Input Matcherino link: ").strip()
 
-    print("PAYOUT DEBUG:")
-    for payout in data.get("payout_distribution", []):
-      print(payout)
+    if not url.startswith("http"):
+        logger.error("Wrong URL")
+        return 1
 
-    print("Генерирую Liquipedia код...")
+    logger.info("Collecting tournament data...")
 
-    page = generate_page(data)
+    try:
+        data = get_tournament_data(url)
+    except Exception as e:
+        logger.error(f"Error with data recieving: {e}")
+        return 1
+
+    if debug:
+        logger.info("PAYOUT DEBUG:")
+        for payout in data.get("payout_distribution", []):
+            print(payout)
+
+    logger.info("Generating Liquipedia code...")
+
+    try:
+        page = generate_page(data)
+    except Exception as e:
+        logger.error(f"Error with page generation: {e}")
+        return 1
 
     with open("liquipedia.txt", "w", encoding="utf-8") as f:
         f.write(page)
 
-    print("Сохранено в liquipedia.txt")
+    logger.info("Saved to liquipedia.txt")
+
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main(debug=True))
