@@ -1,406 +1,432 @@
-import random
-import string
-from collections import defaultdict
+import re
+import requests
 
 
-def generate_bracket_id():
-    chars = string.ascii_lowercase + string.digits
-    return ''.join(random.choice(chars) for _ in range(10))
+def determine_tier(prizepool):
+    if prizepool >= 100000:
+        return 1
+    elif prizepool >= 10000:
+        return 2
+    elif prizepool >= 1000:
+        return 3
+    else:
+        return 4
 
-def sanitize(text: str) -> str:
-    """
-    MediaWiki safe string:
-    """
-    if text is None:
-        return "TBD"
-    return str(text).replace("|", "{{!}}")
 
-def build_format(data):
-    format_text = f"* {data['format_type']} bracket\n"
+REGION_MAP = {
+    6: "|country=north america",
+    7: "|country=north america",
+    8: "|country=north america",
+    9: "|country=north america",
+    10: "|country=north america",
 
-    rounds_bo = data.get("rounds_bo", [])
+    11: "|country=south america",
+    12: "|country=south america",
+    13: "|country=south america",
 
-    if not rounds_bo:
-        return format_text
+    14: """|country=europe
+|country2=middle east
+|country3=cis
+|country4=africa""",
 
-    total_rounds = len(rounds_bo)
+    15: """|country=europe
+|country2=middle east
+|country3=cis
+|country4=africa""",
 
-    stages = []
+    17: """|country=europe
+|country2=middle east
+|country3=cis
+|country4=africa""",
 
-    for idx in range(1, total_rounds + 1):
-        bo = rounds_bo[-idx]
+    18: """|country=europe
+|country2=middle east
+|country3=cis
+|country4=africa""",
 
-        if idx == 1:
-            round_name = "Grand Final"
-        elif idx == 2:
-            round_name = "Semifinals"
-        elif idx == 3:
-            round_name = "Quarterfinals"
-        else:
-            stage_size = 2 ** idx
-            round_name = f"Round of {stage_size}"
+    25: """|country=europe
+|country2=middle east
+|country3=cis
+|country4=africa""",
 
-        stages.append((round_name, bo))
-        
-    groups = []
+    20: "|country=asia pacific",
+    21: "|country=asia pacific",
+    22: "|country=asia pacific",
+    23: "|country=asia pacific",
+    24: "|country=asia pacific",
 
-    current_bo = None
-    start = None
-    end = None
+    26: "|country=middle east",
+}
 
-    for i, (name, bo) in enumerate(stages):
-        if current_bo is None:
-            current_bo = bo
-            start = name
-            end = name
-            continue
 
-        if bo == current_bo:
-            end = name
-        else:
-            groups.append((start, end, current_bo))
-            current_bo = bo
-            start = name
-            end = name
+def extract_id(url):
 
-    groups.append((start, end, current_bo))
-    
-    for start, end, bo in groups:
-        if start == end:
-            format_text += f"* {start} is {{{{Abbr/Bo{bo}xBo3}}}}\n"
-        else:
-            format_text += f"* All matches from {start} to {end} are {{{{Abbr/Bo{bo}xBo3}}}}\n"
+    match = re.search(r"/tournaments/(\d+)", url)
+    if match:
+        return match.group(1)
 
-    return format_text
+    if "/t/" in url:
 
-def build_bracket(
-    matches,
-    entrant_lookup,
-    rounds_bo,
-    has_3rd_place=False,
-    third_place_match=None
-    ):
-    
-    matches = sorted(matches, key=lambda x: x.get("id", 0))
+        html = requests.get(url).text
 
-    groups = defaultdict(list)
-    for m in matches:
-        groups[m.get("roundNum")].append(m)
-
-    sorted_rounds = sorted(groups.keys())
-
-    qf = groups[sorted_rounds[0]] if len(sorted_rounds) > 0 else []
-    sf = groups[sorted_rounds[1]] if len(sorted_rounds) > 1 else []
-    gf = groups[sorted_rounds[-1]] if sorted_rounds else []
-
-    bracket_id = generate_bracket_id()
-
-    bracket = f"{{{{Bracket|Bracket/8|id={bracket_id}\n"
-
-    bracket += "<!-- Quarterfinals -->\n"
-    for i, m in enumerate(qf, 1):
-        a_id = (m.get("entrantA") or {}).get("entrantId")
-        b_id = (m.get("entrantB") or {}).get("entrantId")
-        a_score = (m.get("entrantA") or {}).get("score") or 0
-        b_score = (m.get("entrantB") or {}).get("score") or 0
-        a = sanitize(entrant_lookup.get(a_id, "TBD"))
-        b = sanitize(entrant_lookup.get(b_id, "TBD"))
-        
-        bo = rounds_bo[-3]
-
-        bracket += (
-        f"|R1M{i}={{{{Match\n"
-        f"|bestof={bo}\n"
-        f"|opponent1={{{{TeamOpponent|{a}|score={a_score}}}}}\n"
-        f"|opponent2={{{{TeamOpponent|{b}|score={b_score}}}}}\n"
-        f"}}}}\n"
+        match = re.search(
+            r'"shortlink":\{.*?"resourceId":"(\d+)"',
+            html
         )
 
-    bracket += "<!-- Semifinals -->\n"
-    for i, m in enumerate(sf, 1):
-        a_id = (m.get("entrantA") or {}).get("entrantId")
-        b_id = (m.get("entrantB") or {}).get("entrantId")
-        a_score = (m.get("entrantA") or {}).get("score") or 0
-        b_score = (m.get("entrantB") or {}).get("score") or 0
-        a = sanitize(entrant_lookup.get(a_id, "TBD"))
-        b = sanitize(entrant_lookup.get(b_id, "TBD"))
-        
-        bo = rounds_bo[-2]
+        if match:
+            return match.group(1)
 
-        bracket += (
-        f"|R2M{i}={{{{Match\n"
-        f"|bestof={bo}\n"
-        f"|opponent1={{{{TeamOpponent|{a}|score={a_score}}}}}\n"
-        f"|opponent2={{{{TeamOpponent|{b}|score={b_score}}}}}\n"
-        f"}}}}\n"
+    raise ValueError("Не удалось определить ID турнира.")
+
+
+def extract_prizepool(balance):
+    return round(int(balance) / 100, 2)
+
+def get_rounds_bo(matches, config):
+    bo_per_round = config.get("matchBestOfPerRound", {})
+    total_rounds = max(
+        (m.get("roundNum", 0) for m in matches),
+        default=0
+    )
+    result = []
+    for round_num in range(1, total_rounds + 1):
+        stage_size = 2 ** (total_rounds - round_num + 1)
+        bo = bo_per_round.get(str(stage_size), 3)
+        result.append(bo)
+
+    return result
+
+def get_tournament_data(url):
+    tournament_id = extract_id(url)
+
+    info_url = f"https://api.matcherino.com/__api/bounties/findById?id={tournament_id}"
+    response = requests.get(info_url)
+    data = response.json()["body"]
+
+    organizer = data.get("creator", {}).get("displayName", "")
+
+    prizepool = extract_prizepool(data.get("balance", 0))
+    tier = determine_tier(prizepool)
+
+    bracket_url = (
+        f"https://api.matcherino.com/__api/brackets"
+        f"?bountyId={tournament_id}&id=0&isAdmin=false"
+    )
+
+    bracket_response = requests.get(bracket_url)
+    bracket_body = bracket_response.json()["body"]
+
+    bracket_data = bracket_body[0] if isinstance(bracket_body, list) else bracket_body
+
+    entrants = bracket_data.get("entrants", [])
+    matches = bracket_data.get("matches", [])
+    config = bracket_data.get("config", {})
+    print("\n=== ROUND STATS ===")
+
+    round_counts = {}
+
+    for match in matches:
+       r = match.get("roundNum")
+       round_counts[r] = round_counts.get(r, 0) + 1
+
+    for r in sorted(round_counts):
+       print(f"Round {r}: {round_counts[r]} matches")
+       print("\n=== ROUNDS ===")
+
+    entrant_lookup = {}
+
+    for entrant in entrants:
+        entrant_lookup[entrant["id"]] = entrant.get("name", "TBD")
+
+    print("\n=== ALL ROUNDS ===")
+
+    for match in matches:
+        print(
+        "Round:",
+        match.get("roundNum"),
+        "| ID:",
+        match.get("id"),
+        "|",
+        entrant_lookup.get(
+            match.get("entrantA", {}).get("entrantId"),
+            "TBD"
+        ),
+        "vs",
+        entrant_lookup.get(
+            match.get("entrantB", {}).get("entrantId"),
+            "TBD"
         )
+    )
 
-    bracket += "<!-- Grand Final -->\n"
-    if gf:
-        m = gf[0]
-        a_id = (m.get("entrantA") or {}).get("entrantId")
-        b_id = (m.get("entrantB") or {}).get("entrantId")
-        a_score = (m.get("entrantA") or {}).get("score") or 0
-        b_score = (m.get("entrantB") or {}).get("score") or 0
-        a = sanitize(entrant_lookup.get(a_id, "TBD"))
-        b = sanitize(entrant_lookup.get(b_id, "TBD"))
-        
-        bo = rounds_bo[-1]
-        
-        bracket += (
-        f"|R3M1={{{{Match\n"
-        f"|bestof={bo}\n"
-        f"|opponent1={{{{TeamOpponent|{a}|score={a_score}}}}}\n"
-        f"|opponent2={{{{TeamOpponent|{b}|score={b_score}}}}}\n"
-        f"}}}}\n"
-        )
 
-    third_match = third_place_match
+    results_matches = []
 
-    if has_3rd_place and third_match:
-        a_id = (third_match.get("entrantA") or {}).get("entrantId")
-        b_id = (third_match.get("entrantB") or {}).get("entrantId")
+    allowed_rounds = sorted({m.get("roundNum") for m in matches})[-3:]
 
-        a_score = (third_match.get("entrantA") or {}).get("score") or 0
-        b_score = (third_match.get("entrantB") or {}).get("score") or 0
+    print("ALLOWED:", allowed_rounds)
 
-        a = sanitize(entrant_lookup.get(a_id, "TBD"))
-        b = sanitize(entrant_lookup.get(b_id, "TBD"))
-            
-        bo = rounds_bo[-1]
+    for match in matches:
 
-        bracket += (
-            f"<!-- Third Place Match -->\n"
-            f"|RxMTP={{{{Match\n"
-            f"|bestof={bo}\n"
-            f"|opponent1={{{{TeamOpponent|{a}|score={a_score}}}}}\n"
-            f"|opponent2={{{{TeamOpponent|{b}|score={b_score}}}}}\n"
-            f"}}}}\n"
-        )
+        round_num = match.get("roundNum")
 
-    bracket += "}}"
-    return bracket
+        if round_num not in allowed_rounds:
+          continue
 
-def generate_page(data):
-    slots = []
-    
-    prizes = {
-        1: None,
-        2: None,
-        3: None,
-        4: None,
-        "3-4": None,
-        "5-8": None,
+        a_id = (match.get("entrantA") or {}).get("entrantId")
+        b_id = (match.get("entrantB") or {}).get("entrantId")
+
+        match_copy = match.copy()
+
+        match_copy["entrantA"] = {
+            "entrantId": a_id,
+            "name": entrant_lookup.get(a_id, "TBD"),
+            "score": (match.get("entrantA") or {}).get("score", "")
+        }
+
+        match_copy["entrantB"] = {
+        "entrantId": b_id,
+        "name": entrant_lookup.get(b_id, "TBD"),
+        "score": (match.get("entrantB") or {}).get("score", "")
     }
-    
-    last_known_place = 0
-    third_place_value = None
-    fourth_place_value = None
-    
-    for p in data["payout_distribution"]:
-        low = p["place_low"]
-        high = p["place_high"]
-        perc = p["percentage"]
 
-        if perc is None:
+        results_matches.append(match_copy)
+
+        results_matches.sort(
+        key=lambda m: (
+            m.get("roundNum", 0),
+            m.get("id", 0)
+    )
+)
+
+    total_rounds = max(
+    (m.get("totalRounds", 0) for m in matches),
+    default=0
+)
+
+
+    third_place_match = None
+    gf_match = None
+    consolation_matches = []
+
+    max_round = max(m.get("roundNum", 0) for m in matches)
+
+    if config.get("consolationMatch"):
+       gf_match = next(
+        (m for m in matches if m.get("roundNum") == max_round),
+        None
+    )
+
+    consolation_matches = [
+        m for m in matches
+        if m.get("roundNum") == max_round
+        and m != gf_match
+        and m.get("entrantA")
+        and m.get("entrantB")
+    ]
+
+    if consolation_matches:
+        third_place_match = consolation_matches[0]
+
+    third_place_match = (
+    consolation_matches[0]
+    if consolation_matches
+    else None
+)
+
+    for match in consolation_matches:
+          a_id = (match.get("entrantA") or {}).get("entrantId")
+          b_id = (match.get("entrantB") or {}).get("entrantId")
+
+    results_matches.append({
+        **match,
+        "entrantA": {
+            "entrantId": a_id,
+            "name": entrant_lookup.get(a_id, "TBD"),
+            "score": (match.get("entrantA") or {}).get("score", "")
+        },
+        "entrantB": {
+            "entrantId": b_id,
+            "name": entrant_lookup.get(b_id, "TBD"),
+            "score": (match.get("entrantB") or {}).get("score", "")
+        }
+    })
+
+    for m in results_matches:
+        print(
+        entrant_lookup.get(m["entrantA"]["entrantId"]),
+        m["entrantA"].get("score", "NO SCORE"),
+        "-",
+        m["entrantB"].get("score", "NO SCORE"),
+        entrant_lookup.get(m["entrantB"]["entrantId"])
+    )
+
+    print("\nRESULT MATCHES RAW:")
+    print("ALLOWED:", allowed_rounds)
+    print("HAS CONSOLATION:", config.get("consolationMatch"))
+
+    for m in results_matches:
+     print(
+        "DEBUG:",
+        m.get("roundNum"),
+        m.get("id"),
+        m.get("entrantA", {}).get("name"),
+        "vs",
+        m.get("entrantB", {}).get("name")
+    )
+
+    for m in results_matches:
+        print(
+        m.get("roundNum"),
+        m.get("entrantA", {}).get("name"),
+        "vs",
+        m.get("entrantB", {}).get("name")
+    )
+
+    print("\nBRACKET KEYS:", bracket_data.keys())
+    print("MATCHES COUNT:", len(matches))
+
+    print("RESULT MATCHES:", len(results_matches))
+
+    for m in results_matches:
+     print(
+        "Round",
+        m.get("roundNum"),
+        "|",
+        m["entrantA"]["name"],
+        "vs",
+        m["entrantB"]["name"]
+    )
+
+    qualified_entrant_ids = set()
+
+
+    if tier in [3, 4]:
+       target_round = total_rounds - 2
+    elif tier == 2:
+       target_round = total_rounds - 3
+    else:
+       target_round = total_rounds - 4
+
+    for match in matches:
+        if match.get("roundNum") != target_round:
             continue
 
-        if low != -1 and high != -1:
-            if low == 1 and high == 1:
-                prizes[1] = perc
-                last_known_place = 1
-            elif low == 2 and high == 2:
-                prizes[2] = perc
-                last_known_place = 2
-            elif low == 3 and high == 3:
-                prizes[3] = perc
-                third_place_value = perc
-                last_known_place = 3
-            elif low == 4 and high == 4:
-                prizes[4] = perc
-                fourth_place_value = perc
-                last_known_place = 4
-            elif low == 3 and high == 4:
-                prizes["3-4"] = perc
-                last_known_place = 4
-            elif low == 5 and high == 8:
-                prizes["5-8"] = perc
-                last_known_place = 8
-        else:
-            last_known_place += 1
-            
-            if last_known_place == 1:
-                prizes[1] = perc
-            elif last_known_place == 2:
-                prizes[2] = perc
-            elif last_known_place == 3:
-                if data["has_third_place_match"]:
-                    prizes[3] = perc
-                    third_place_value = perc
-                else:
-                    prizes["3-4"] = perc
-            elif last_known_place == 4:
-                if data["has_third_place_match"]:
-                    prizes[4] = perc
-                    fourth_place_value = perc
-                else:
-                    pass
-            elif last_known_place >= 5 and last_known_place <= 8:
-                if prizes["5-8"] is None:
-                    prizes["5-8"] = perc
-                else:
-                    prizes["5-8"] += perc
+        a = match.get("entrantA", {}).get("entrantId")
+        b = match.get("entrantB", {}).get("entrantId")
 
-    if not data["has_third_place_match"]:
-        if third_place_value is not None and fourth_place_value is not None:
-            if third_place_value != fourth_place_value:
-                raise ValueError(
-                    f"API returned inconsistent data: 3rd place ({third_place_value}%) "
-                    f"and 4th place ({fourth_place_value}%) values do not match. "
-                    f"Expected equal values when no 3rd place match exists."
-                )
+        if a:
+            qualified_entrant_ids.add(a)
+        if b:
+            qualified_entrant_ids.add(b)
 
-    total_percentage = 0
+    print("QUALIFIED:", len(qualified_entrant_ids))
+
+    payout_distribution = []
+
+    for payout in (data.get("payouts") or []):
+
+        title = payout.get("title", "")
+        strategy = payout.get("strategy")
+        raw = payout.get("payout")
+
+        if "pin" in title.lower():
+            continue
+        if strategy != "percentage":
+            continue
+        if raw is None:
+            continue
+
+        percentage = int(raw)
+        if percentage > 100:
+            percentage //= 100
+
+        payout_distribution.append({
+            "place_low": payout.get("placeLow"),
+            "place_high": payout.get("placeHigh"),
+            "percentage": percentage,
+        })
+
+    print("DEBUG PAYOUTS:", payout_distribution)
+
+
+    players = []
+    total_teams = len(entrants)
+    for entrant in entrants:
+
+        if qualified_entrant_ids and entrant["id"] not in qualified_entrant_ids:
+            continue
+
+        team = entrant.get("team", {})
+        members = team.get("members", [])
+
+        players.append({
+            "team": entrant.get("name", ""),
+            "members": [m.get("displayName", "") for m in members]
+        })
+
+    date = data.get("startAt", "")[:10]
+
+    socials = data.get("meta", {}).get("eventSocials", {})
+
+    discord = socials.get("discord", "")
+    twitter = socials.get("twitter", "")
+    youtube = socials.get("youtube", "")
+    twitch = socials.get("twitch", "")
+    instagram = socials.get("instagram", "")
+    facebook = socials.get("facebook", "")
+
+    if "discord.gg/" in discord:
+       discord = discord.split("/")[-1]
+    elif "discord.com/invite/" in discord:
+        discord = discord.split("/")[-1]
+
+    if twitter:
+       twitter = twitter.rstrip("/").split("/")[-1]
+       twitter = twitter.replace("@", "")
+
+    if youtube:
+       youtube = youtube.rstrip("/").split("/")[-1]
+       youtube = youtube.replace("@", "")
+
+    if twitch:
+     twitch = twitch.rstrip("/").split("/")[-1]
+
+    if instagram:
+       instagram = instagram.rstrip("/").split("/")[-1]
+
+    if facebook:
+       facebook = facebook.rstrip("/").split("/")[-1]
+
+    format_type = "Double-elimination" if config.get("bracketType") == "double" else "Single-elimination"
     
-    if prizes[1] is not None:
-        slots.append(f"{{{{Slot|place=1|percentage1={prizes[1]}}}}}")
-        total_percentage += prizes[1]
-    else:
-        slots.append(f"{{{{Slot|place=1|percentage1=}}}}")
-    
-    if prizes[2] is not None:
-        slots.append(f"{{{{Slot|place=2|percentage1={prizes[2]}}}}}")
-        total_percentage += prizes[2]
-    else:
-        slots.append(f"{{{{Slot|place=2|percentage1=}}}}")
-    
-    if data["has_third_place_match"]:
-        if prizes[3] is not None:
-            slots.append(f"{{{{Slot|place=3|percentage1={prizes[3]}}}}}")
-            total_percentage += prizes[3]
-        else:
-            slots.append(f"{{{{Slot|place=3|percentage1=}}}}")
-        if prizes[4] is not None:
-            slots.append(f"{{{{Slot|place=4|percentage1={prizes[4]}}}}}")
-            total_percentage += prizes[4]
-        else:
-            slots.append(f"{{{{Slot|place=4|percentage1=}}}}")
-    else:
-        if prizes["3-4"] is not None:
-            combined_34 = prizes["3-4"]
-            
-            if total_percentage + combined_34 * 2 <= 100:
-                slots.append(f"{{{{Slot|place=3-4|percentage1={combined_34}}}}}")
-                total_percentage += combined_34 * 2
-            else:
-                slots.append(f"{{{{Slot|place=3-4|percentage1={combined_34 / 2:.1f}}}}}")
-                total_percentage += combined_34
-        else:
-            slots.append("{{Slot|place=3-4|percentage1=}}")
-    
-    if prizes["5-8"] is not None:
-        combined_58 = prizes["5-8"]
-        
-        if total_percentage + combined_58 * 4 <= 100:
-            slots.append(f"{{{{Slot|place=5-8|percentage1={combined_58}}}}}")
-            total_percentage += combined_58 * 4
-        else:
-            slots.append(f"{{{{Slot|place=5-8|percentage1={combined_58 / 4:.1f}}}}}")
-            total_percentage += combined_58
-    else:
-        slots.append("{{Slot|place=5-8|percentage1=}}")
+    rounds_bo = get_rounds_bo(matches, config)
 
-    prize_distribution = (
-        "{{TeamPrizePool|prizesummary=true|import=true|cutafter=8|percentage1=1"
-        + "".join(f"\n|{slot}" for slot in slots)
-        + "\n}}"
-    )
+    return {
+        "name": data.get("title", ""),
+        "prizepool": prizepool,
+        "tier": tier,
+        "region": REGION_MAP.get(data.get("gameRegionId"), "|country="),
+        "url": url,
+        "id": tournament_id,
+        "date": date,
+        "discord": discord,
+        "twitter": twitter,
+        "youtube": youtube,
+        "twitch": twitch,
+        "instagram": instagram,
+        "organizer": organizer,
+        "facebook": facebook,
+        "players": players,
+        "total_rounds": total_rounds,
+        "team_number": len(entrants),
+        "has_third_place_match": config.get("consolationMatch", False),
+        "payout_distribution": payout_distribution,
+        "format_type": format_type,
+        "rounds_bo": rounds_bo,
+        "third_place_match": third_place_match,
+        "total_teams": total_teams,
+        "matches": results_matches,
+        "entrant_lookup": entrant_lookup,
 
-    participants = "{{TeamParticipants\n"
-
-    for team in data["players"]:
-        team_name = sanitize(team["team"])
-
-        participants += (
-            f"|{{{{Opponent|{team_name}|import=false|qualification="
-            f"{{{{Qualification|method=|url=|text=|placement=}}}}\n"
-            f"    |players={{{{Persons\n"
-        )
-
-        for player in team["members"]:
-            player = sanitize(player)
-            participants += f"  |{{{{Person|{player}|flag=}}}}\n"
-
-        participants += " }}\n }}\n"
-
-    participants += "}}"
-    bracket = build_bracket(
-        data["matches"],
-        data["entrant_lookup"],
-        data["rounds_bo"],
-        data["has_third_place_match"],
-        data["third_place_match"]
-    )
-    full_format = build_format(data)
-    socials = ""
-    if data["discord"]:
-       socials += f"|discord={data['discord']}\n"
-    if data["twitter"]:
-       socials += f"|twitter={data['twitter']}\n"
-    if data["youtube"]:
-        socials += f"|youtube={data['youtube']}\n"
-    if data["twitch"]:
-       socials += f"|twitch={data['twitch']}\n"
-    if data["instagram"]:
-       socials += f"|instagram={data['instagram']}\n"
-    if data["facebook"]:
-       socials += f"|facebook={data['facebook']}\n"
-
-    return f"""{{{{DISPLAYTITLE:{data['name']}}}}}
-{{{{Infobox league
-<!-- Header -->
-|image=Matcherino allmode.png
-|icon=Matcherino allmode.png
-|name={data['name']}
-|tickername={data['name']}
-|shortname={data['name']}
-<!-- League Information -->
-{f"|organizer={data['organizer']}" if data["organizer"] else ""}
-{data['region']}
-|format={data['format_type']}
-|prizepoolusd={data['prizepool']}
-|date={data['date']}
-|series=
-|liquipediatier={data['tier']}
-|team_number={data.get('team_number', len(data.get('players', [])))}
-|type=Online
-<!-- Links -->
-|web={data['url']}
-|bracket={data['url']}/bracket
-|rules={data['url']}/rules
-{socials}
-<!-- Chronology -->
-|previous=
-|next=
-}}}}
-
-==About==
-===Format===
-{full_format}
-
-===Prize Pool===
-{prize_distribution}
-
-==Participants==
-{participants}
-
-==Results (Top 8)==
-{bracket}
-
-==Additional Information==
-===Country Representation===
-{{{{Country representation}}}}
-
-==References==
-{{{{Reflist}}}}
-"""
+    }
