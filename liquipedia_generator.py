@@ -200,18 +200,26 @@ def generate_page(data):
     if prizes[1] is not None:
         slots.append(f"{{{{Slot|place=1|percentage1={prizes[1]}}}}}")
         total_percentage += prizes[1]
+    else:
+        slots.append(f"{{{{Slot|place=1|percentage1=}}}}")
     
     if prizes[2] is not None:
         slots.append(f"{{{{Slot|place=2|percentage1={prizes[2]}}}}}")
         total_percentage += prizes[2]
+    else:
+        slots.append(f"{{{{Slot|place=2|percentage1=}}}}")
     
     if data["has_third_place_match"]:
         if prizes[3] is not None:
             slots.append(f"{{{{Slot|place=3|percentage1={prizes[3]}}}}}")
             total_percentage += prizes[3]
+        else:
+            slots.append(f"{{{{Slot|place=3|percentage1=}}}}")
         if prizes[4] is not None:
             slots.append(f"{{{{Slot|place=4|percentage1={prizes[4]}}}}}")
             total_percentage += prizes[4]
+        else:
+            slots.append(f"{{{{Slot|place=4|percentage1=}}}}")
     else:
         if prizes["3-4"] is not None:
             combined_34 = prizes["3-4"]
