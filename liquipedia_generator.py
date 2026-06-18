@@ -121,11 +121,21 @@ def build_bracket(
     return bracket
 
 def generate_page(data):
-
     slots = []
-    third = fourth = None
-    combined_34 = None
-
+    
+    prizes = {
+        1: None,
+        2: None,
+        3: None,
+        4: None,
+        "3-4": None,
+        "5-8": None,
+    }
+    
+    last_known_place = 0
+    third_place_value = None
+    fourth_place_value = None
+    
     for p in data["payout_distribution"]:
         low = p["place_low"]
         high = p["place_high"]
@@ -134,37 +144,104 @@ def generate_page(data):
         if perc is None:
             continue
 
-        if low == 1:
-            slots.append(f"{{{{Slot|place=1|percentage1={perc}}}}}")
-
-        elif low == 2:
-            slots.append(f"{{{{Slot|place=2|percentage1={perc}}}}}")
-
-        elif low == 3 and high == 3:
-            third = perc
-
-        elif low == 4 and high == 4:
-            fourth = perc
-
-        elif low == 3 and high == 4:
-            combined_34 = perc
-
-    if data["has_third_place_match"]:
-        if third is not None:
-            slots.append(f"{{{{Slot|place=3|percentage1={third}}}}}")
-        if fourth is not None:
-            slots.append(f"{{{{Slot|place=4|percentage1={fourth}}}}}")
-    else:
-        if combined_34 is not None:
-            slots.append(f"{{{{Slot|place=3-4|percentage1={combined_34}}}}}")
+        if low != -1 and high != -1:
+            if low == 1 and high == 1:
+                prizes[1] = perc
+                last_known_place = 1
+            elif low == 2 and high == 2:
+                prizes[2] = perc
+                last_known_place = 2
+            elif low == 3 and high == 3:
+                prizes[3] = perc
+                last_known_place = 3
+            elif low == 4 and high == 4:
+                prizes[4] = perc
+                last_known_place = 4
+            elif low == 3 and high == 4:
+                prizes["3-4"] = perc
+                last_known_place = 4
+            elif low == 5 and high == 8:
+                prizes["5-8"] = perc
+                last_known_place = 8
+        else:
+            last_known_place += 1
             
+            if last_known_place == 1:
+                prizes[1] = perc
+            elif last_known_place == 2:
+                prizes[2] = perc
+            elif last_known_place == 3:
+                if data["has_third_place_match"]:
+                    prizes[3] = perc
+                else:
+                    prizes["3-4"] = perc
+            elif last_known_place == 4:
+                if data["has_third_place_match"]:
+                    prizes[4] = perc
+                else:
+                    pass
+            elif last_known_place >= 5 and last_known_place <= 8:
+                if prizes["5-8"] is None:
+                    prizes["5-8"] = perc
+                else:
+                    prizes["5-8"] += perc
+
+    if not data["has_third_place_match"]:
+        if third_place_value is not None and fourth_place_value is not None:
+            if third_place_value != fourth_place_value:
+                raise ValueError(
+                    f"API returned inconsistent data: 3rd place ({third_place_value}%) "
+                    f"and 4th place ({fourth_place_value}%) values do not match. "
+                    f"Expected equal values when no 3rd place match exists."
+                )
+
+    total_percentage = 0
+    
+    if prizes[1] is not None:
+        slots.append(f"{{{{Slot|place=1|percentage1={prizes[1]}}}}}")
+        total_percentage += prizes[1]
+    
+    if prizes[2] is not None:
+        slots.append(f"{{{{Slot|place=2|percentage1={prizes[2]}}}}}")
+        total_percentage += prizes[2]
+    
+    if data["has_third_place_match"]:
+        if prizes[3] is not None:
+            slots.append(f"{{{{Slot|place=3|percentage1={prizes[3]}}}}}")
+            total_percentage += prizes[3]
+        if prizes[4] is not None:
+            slots.append(f"{{{{Slot|place=4|percentage1={prizes[4]}}}}}")
+            total_percentage += prizes[4]
+    else:
+        if prizes["3-4"] is not None:
+            combined_34 = prizes["3-4"]
+            
+            if total_percentage + combined_34 * 2 <= 100:
+                slots.append(f"{{{{Slot|place=3-4|percentage1={combined_34}}}}}")
+                total_percentage += combined_34 * 2
+            else:
+                slots.append(f"{{{{Slot|place=3-4|percentage1={combined_34 // 2}}}}}")
+                total_percentage += combined_34
+        else:
+            slots.append("{{Slot|place=3-4|percentage1=}}")
+    
+    if prizes["5-8"] is not None:
+        combined_58 = prizes["5-8"]
+        
+        if total_percentage + combined_58 * 4 <= 100:
+            slots.append(f"{{{{Slot|place=5-8|percentage1={combined_58}}}}}")
+            total_percentage += combined_58 * 4
+        else:
+            slots.append(f"{{{{Slot|place=5-8|percentage1={combined_58 // 4}}}}}")
+            total_percentage += combined_58
+    else:
         slots.append("{{Slot|place=5-8|percentage1=}}")
 
     prize_distribution = (
         "{{TeamPrizePool|prizesummary=true|import=true|cutafter=8|percentage1=1"
-       + "".join(f"\n|{slot}" for slot in slots)
-       + "\n}}"
-)
+        + "".join(f"\n|{slot}" for slot in slots)
+        + "\n}}"
+    )
 
     participants = "{{TeamParticipants\n"
 
@@ -244,7 +321,7 @@ def generate_page(data):
 * Grand Final Match are {{{{Abbr/Bo{data['grand_final_bo']}xBo3}}}}
 * All other matches are {{{{Abbr/Bo{data['other_matches_bo']}xBo3}}}}
 
-==Prize Pool==
+===Prize Pool===
 {prize_distribution}
 
 ==Participants==
