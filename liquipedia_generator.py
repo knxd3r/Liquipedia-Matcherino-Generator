@@ -94,8 +94,8 @@ def build_bracket(
     gf = groups[sorted_rounds[-1]] if sorted_rounds else []
 
     bracket_id = generate_bracket_id()
-
     bracket = f"{{{{Bracket|Bracket/8|id={bracket_id}\n"
+    bestofed = False
 
     bracket += "<!-- Quarterfinals -->\n"
     for i, m in enumerate(qf, 1):
@@ -107,16 +107,19 @@ def build_bracket(
         b = sanitize(entrant_lookup.get(b_id, "TBD"))
         
         bo = rounds_bo[-3]
-
+        
+        bracket += f"|R1M{i}={{{{Match\n"
+        if not bestofed:
+            bracket += f"|bestof={bo}\n"
+            bestofed = True
         bracket += (
-        f"|R1M{i}={{{{Match\n"
-        f"|bestof={bo}\n"
         f"|opponent1={{{{TeamOpponent|{a}|score={a_score}}}}}\n"
         f"|opponent2={{{{TeamOpponent|{b}|score={b_score}}}}}\n"
         f"}}}}\n"
         )
 
     bracket += "<!-- Semifinals -->\n"
+    bestofed = False
     for i, m in enumerate(sf, 1):
         a_id = (m.get("entrantA") or {}).get("entrantId")
         b_id = (m.get("entrantB") or {}).get("entrantId")
@@ -127,15 +130,18 @@ def build_bracket(
         
         bo = rounds_bo[-2]
 
+        bracket += f"|R2M{i}={{{{Match\n"
+        if not bestofed:
+            bracket += f"|bestof={bo}\n"
+            bestofed = True
         bracket += (
-        f"|R2M{i}={{{{Match\n"
-        f"|bestof={bo}\n"
         f"|opponent1={{{{TeamOpponent|{a}|score={a_score}}}}}\n"
         f"|opponent2={{{{TeamOpponent|{b}|score={b_score}}}}}\n"
         f"}}}}\n"
         )
 
     bracket += "<!-- Grand Final -->\n"
+    bestofed = False
     if gf:
         m = gf[0]
         a_id = (m.get("entrantA") or {}).get("entrantId")
@@ -147,9 +153,11 @@ def build_bracket(
         
         bo = rounds_bo[-1]
         
+        bracket += f"|R3M1={{{{Match\n"
+        if not bestofed:
+            bracket += f"|bestof={bo}\n"
+            bestofed = True
         bracket += (
-        f"|R3M1={{{{Match\n"
-        f"|bestof={bo}\n"
         f"|opponent1={{{{TeamOpponent|{a}|score={a_score}}}}}\n"
         f"|opponent2={{{{TeamOpponent|{b}|score={b_score}}}}}\n"
         f"}}}}\n"
@@ -172,7 +180,6 @@ def build_bracket(
         bracket += (
             f"<!-- Third Place Match -->\n"
             f"|RxMTP={{{{Match\n"
-            f"|bestof={bo}\n"
             f"|opponent1={{{{TeamOpponent|{a}|score={a_score}}}}}\n"
             f"|opponent2={{{{TeamOpponent|{b}|score={b_score}}}}}\n"
             f"}}}}\n"
