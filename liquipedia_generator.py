@@ -7,7 +7,6 @@ def generate_bracket_id():
     chars = string.ascii_lowercase + string.digits
     return ''.join(random.choice(chars) for _ in range(10))
 
-
 def sanitize(text: str) -> str:
     """
     MediaWiki safe string:
@@ -16,15 +15,72 @@ def sanitize(text: str) -> str:
         return "TBD"
     return str(text).replace("|", "{{!}}")
 
+def build_format(data):
+    format_text = f"* {data['format_type']} bracket\n"
+
+    rounds_bo = data.get("rounds_bo", [])
+
+    if not rounds_bo:
+        return format_text
+
+    total_rounds = len(rounds_bo)
+
+    stages = []
+
+    for idx in range(1, total_rounds + 1):
+        bo = rounds_bo[-idx]
+
+        if idx == 1:
+            round_name = "Grand Final"
+        elif idx == 2:
+            round_name = "Semifinals"
+        elif idx == 3:
+            round_name = "Quarterfinals"
+        else:
+            stage_size = 2 ** idx
+            round_name = f"Round of {stage_size}"
+
+        stages.append((round_name, bo))
+        
+    groups = []
+
+    current_bo = None
+    start = None
+    end = None
+
+    for i, (name, bo) in enumerate(stages):
+        if current_bo is None:
+            current_bo = bo
+            start = name
+            end = name
+            continue
+
+        if bo == current_bo:
+            end = name
+        else:
+            groups.append((start, end, current_bo))
+            current_bo = bo
+            start = name
+            end = name
+
+    groups.append((start, end, current_bo))
+    
+    for start, end, bo in groups:
+        if start == end:
+            format_text += f"* {start} is {{{{Abbr/Bo{bo}xBo3}}}}\n"
+        else:
+            format_text += f"* All matches from {start} to {end} are {{{{Abbr/Bo{bo}xBo3}}}}\n"
+
+    return format_text
 
 def build_bracket(
     matches,
     entrant_lookup,
-    bo_map,
+    rounds_bo,
     has_3rd_place=False,
     third_place_match=None
-):
-
+    ):
+    
     matches = sorted(matches, key=lambda x: x.get("id", 0))
 
     groups = defaultdict(list)
@@ -38,11 +94,10 @@ def build_bracket(
     gf = groups[sorted_rounds[-1]] if sorted_rounds else []
 
     bracket_id = generate_bracket_id()
-
-    bracket = f"{{{{Bracket|Bracket/8|id={bracket_id}|matchWidth=200\n"
+    bracket = f"{{{{Bracket|Bracket/8|id={bracket_id}\n"
+    bestofed = False
 
     bracket += "<!-- Quarterfinals -->\n"
-
     for i, m in enumerate(qf, 1):
         a_id = (m.get("entrantA") or {}).get("entrantId")
         b_id = (m.get("entrantB") or {}).get("entrantId")
@@ -50,17 +105,21 @@ def build_bracket(
         b_score = (m.get("entrantB") or {}).get("score") or 0
         a = sanitize(entrant_lookup.get(a_id, "TBD"))
         b = sanitize(entrant_lookup.get(b_id, "TBD"))
-
+        
+        bo = rounds_bo[-3]
+        
+        bracket += f"|R1M{i}={{{{Match\n"
+        if not bestofed:
+            bracket += f"|bestof={bo}\n"
+            bestofed = True
         bracket += (
-    f"|R1M{i}={{{{Match\n"
-    f"|bestof={bo_map.get(1, 3)}\n"
-    f"|opponent1={{{{TeamOpponent|{a}|score={a_score}}}}}\n"
-    f"|opponent2={{{{TeamOpponent|{b}|score={b_score}}}}}\n"
-    f"}}}}\n"
-)
-
+        f"|opponent1={{{{TeamOpponent|{a}|score={a_score}}}}}\n"
+        f"|opponent2={{{{TeamOpponent|{b}|score={b_score}}}}}\n"
+        f"}}}}\n"
+        )
 
     bracket += "<!-- Semifinals -->\n"
+    bestofed = False
     for i, m in enumerate(sf, 1):
         a_id = (m.get("entrantA") or {}).get("entrantId")
         b_id = (m.get("entrantB") or {}).get("entrantId")
@@ -68,16 +127,21 @@ def build_bracket(
         b_score = (m.get("entrantB") or {}).get("score") or 0
         a = sanitize(entrant_lookup.get(a_id, "TBD"))
         b = sanitize(entrant_lookup.get(b_id, "TBD"))
+        
+        bo = rounds_bo[-2]
 
-
+        bracket += f"|R2M{i}={{{{Match\n"
+        if not bestofed:
+            bracket += f"|bestof={bo}\n"
+            bestofed = True
         bracket += (
-    f"|R2M{i}={{{{Match\n"
-    f"|bestof={bo_map.get(2, 3)}\n"
-    f"|opponent1={{{{TeamOpponent|{a}|score={a_score}}}}}\n"
-    f"|opponent2={{{{TeamOpponent|{b}|score={b_score}}}}}\n"
-    f"}}}}\n"
-)
+        f"|opponent1={{{{TeamOpponent|{a}|score={a_score}}}}}\n"
+        f"|opponent2={{{{TeamOpponent|{b}|score={b_score}}}}}\n"
+        f"}}}}\n"
+        )
 
+    bracket += "<!-- Grand Final -->\n"
+    bestofed = False
     if gf:
         m = gf[0]
         a_id = (m.get("entrantA") or {}).get("entrantId")
@@ -86,36 +150,40 @@ def build_bracket(
         b_score = (m.get("entrantB") or {}).get("score") or 0
         a = sanitize(entrant_lookup.get(a_id, "TBD"))
         b = sanitize(entrant_lookup.get(b_id, "TBD"))
-        bracket += "<!-- Grand Final -->\n"
-
+        
+        bo = rounds_bo[-1]
+        
+        bracket += f"|R3M1={{{{Match\n"
+        if not bestofed:
+            bracket += f"|bestof={bo}\n"
+            bestofed = True
         bracket += (
-    f"|R3M1={{{{Match\n"
-    f"|bestof={bo_map.get(3, 5)}\n"
-    f"|opponent1={{{{TeamOpponent|{a}|score={a_score}}}}}\n"
-    f"|opponent2={{{{TeamOpponent|{b}|score={b_score}}}}}\n"
-    f"}}}}\n"
-)
+        f"|opponent1={{{{TeamOpponent|{a}|score={a_score}}}}}\n"
+        f"|opponent2={{{{TeamOpponent|{b}|score={b_score}}}}}\n"
+        f"}}}}\n"
+        )
 
     third_match = third_place_match
 
     if has_3rd_place and third_match:
+        a_id = (third_match.get("entrantA") or {}).get("entrantId")
+        b_id = (third_match.get("entrantB") or {}).get("entrantId")
 
-     a_id = (third_match.get("entrantA") or {}).get("entrantId")
-     b_id = (third_match.get("entrantB") or {}).get("entrantId")
+        a_score = (third_match.get("entrantA") or {}).get("score") or 0
+        b_score = (third_match.get("entrantB") or {}).get("score") or 0
 
-     a_score = (third_match.get("entrantA") or {}).get("score") or 0
-     b_score = (third_match.get("entrantB") or {}).get("score") or 0
+        a = sanitize(entrant_lookup.get(a_id, "TBD"))
+        b = sanitize(entrant_lookup.get(b_id, "TBD"))
+            
+        bo = rounds_bo[-1]
 
-     a = sanitize(entrant_lookup.get(a_id, "TBD"))
-     b = sanitize(entrant_lookup.get(b_id, "TBD"))
-
-     bracket += (
-         f"|RxMTP={{{{Match\n"
-         f"|bestof={bo_map.get(3, 5)}\n"
-         f"|opponent1={{{{TeamOpponent|{a}|score={a_score}}}}}\n"
-         f"|opponent2={{{{TeamOpponent|{b}|score={b_score}}}}}\n"
-         f"}}}}\n"
-    )
+        bracket += (
+            f"<!-- Third Place Match -->\n"
+            f"|RxMTP={{{{Match\n"
+            f"|opponent1={{{{TeamOpponent|{a}|score={a_score}}}}}\n"
+            f"|opponent2={{{{TeamOpponent|{b}|score={b_score}}}}}\n"
+            f"}}}}\n"
+        )
 
     bracket += "}}"
     return bracket
@@ -153,9 +221,11 @@ def generate_page(data):
                 last_known_place = 2
             elif low == 3 and high == 3:
                 prizes[3] = perc
+                third_place_value = perc
                 last_known_place = 3
             elif low == 4 and high == 4:
                 prizes[4] = perc
+                fourth_place_value = perc
                 last_known_place = 4
             elif low == 3 and high == 4:
                 prizes["3-4"] = perc
@@ -173,11 +243,13 @@ def generate_page(data):
             elif last_known_place == 3:
                 if data["has_third_place_match"]:
                     prizes[3] = perc
+                    third_place_value = perc
                 else:
                     prizes["3-4"] = perc
             elif last_known_place == 4:
                 if data["has_third_place_match"]:
                     prizes[4] = perc
+                    fourth_place_value = perc
                 else:
                     pass
             elif last_known_place >= 5 and last_known_place <= 8:
@@ -200,18 +272,26 @@ def generate_page(data):
     if prizes[1] is not None:
         slots.append(f"{{{{Slot|place=1|percentage1={prizes[1]}}}}}")
         total_percentage += prizes[1]
+    else:
+        slots.append(f"{{{{Slot|place=1|percentage1=}}}}")
     
     if prizes[2] is not None:
         slots.append(f"{{{{Slot|place=2|percentage1={prizes[2]}}}}}")
         total_percentage += prizes[2]
+    else:
+        slots.append(f"{{{{Slot|place=2|percentage1=}}}}")
     
     if data["has_third_place_match"]:
         if prizes[3] is not None:
             slots.append(f"{{{{Slot|place=3|percentage1={prizes[3]}}}}}")
             total_percentage += prizes[3]
+        else:
+            slots.append(f"{{{{Slot|place=3|percentage1=}}}}")
         if prizes[4] is not None:
             slots.append(f"{{{{Slot|place=4|percentage1={prizes[4]}}}}}")
             total_percentage += prizes[4]
+        else:
+            slots.append(f"{{{{Slot|place=4|percentage1=}}}}")
     else:
         if prizes["3-4"] is not None:
             combined_34 = prizes["3-4"]
@@ -220,7 +300,7 @@ def generate_page(data):
                 slots.append(f"{{{{Slot|place=3-4|percentage1={combined_34}}}}}")
                 total_percentage += combined_34 * 2
             else:
-                slots.append(f"{{{{Slot|place=3-4|percentage1={combined_34 // 2}}}}}")
+                slots.append(f"{{{{Slot|place=3-4|percentage1={combined_34 / 2:.1f}}}}}")
                 total_percentage += combined_34
         else:
             slots.append("{{Slot|place=3-4|percentage1=}}")
@@ -232,7 +312,7 @@ def generate_page(data):
             slots.append(f"{{{{Slot|place=5-8|percentage1={combined_58}}}}}")
             total_percentage += combined_58 * 4
         else:
-            slots.append(f"{{{{Slot|place=5-8|percentage1={combined_58 // 4}}}}}")
+            slots.append(f"{{{{Slot|place=5-8|percentage1={combined_58 / 4:.1f}}}}}")
             total_percentage += combined_58
     else:
         slots.append("{{Slot|place=5-8|percentage1=}}")
@@ -249,7 +329,6 @@ def generate_page(data):
         team_name = sanitize(team["team"])
 
         participants += (
-
             f"|{{{{Opponent|{team_name}|import=false|qualification="
             f"{{{{Qualification|method=|url=|text=|placement=}}}}\n"
             f"    |players={{{{Persons\n"
@@ -263,16 +342,13 @@ def generate_page(data):
 
     participants += "}}"
     bracket = build_bracket(
-    data["matches"],
-    data["entrant_lookup"],
-    {
-        1: data["other_matches_bo"],
-        2: data["other_matches_bo"],
-        3: data["grand_final_bo"],
-    },
-    data["has_third_place_match"],
-    data["third_place_match"]
-)
+        data["matches"],
+        data["entrant_lookup"],
+        data["rounds_bo"],
+        data["has_third_place_match"],
+        data["third_place_match"]
+    )
+    full_format = build_format(data)
     socials = ""
     if data["discord"]:
        socials += f"|discord={data['discord']}\n"
@@ -317,9 +393,7 @@ def generate_page(data):
 
 ==About==
 ===Format===
-* {data['format_type']} bracket
-* Grand Final Match are {{{{Abbr/Bo{data['grand_final_bo']}xBo3}}}}
-* All other matches are {{{{Abbr/Bo{data['other_matches_bo']}xBo3}}}}
+{full_format}
 
 ===Prize Pool===
 {prize_distribution}

@@ -83,6 +83,19 @@ def extract_id(url):
 def extract_prizepool(balance):
     return round(int(balance) / 100, 2)
 
+def get_rounds_bo(matches, config):
+    bo_per_round = config.get("matchBestOfPerRound", {})
+    total_rounds = max(
+        (m.get("roundNum", 0) for m in matches),
+        default=0
+    )
+    result = []
+    for round_num in range(1, total_rounds + 1):
+        stage_size = 2 ** (total_rounds - round_num + 1)
+        bo = bo_per_round.get(str(stage_size), 3)
+        result.append(bo)
+
+    return result
 
 def get_tournament_data(url):
     tournament_id = extract_id(url)
@@ -121,9 +134,6 @@ def get_tournament_data(url):
        print(f"Round {r}: {round_counts[r]} matches")
        print("\n=== ROUNDS ===")
 
-
-
-
     entrant_lookup = {}
 
     for entrant in entrants:
@@ -150,11 +160,11 @@ def get_tournament_data(url):
     )
 
 
-        results_matches = []
+    results_matches = []
 
-        allowed_rounds = sorted({m.get("roundNum") for m in matches})[-3:]
+    allowed_rounds = sorted({m.get("roundNum") for m in matches})[-3:]
 
-        print("ALLOWED:", allowed_rounds)
+    print("ALLOWED:", allowed_rounds)
 
     for match in matches:
 
@@ -388,16 +398,9 @@ def get_tournament_data(url):
     if facebook:
        facebook = facebook.rstrip("/").split("/")[-1]
 
-
     format_type = "Double-elimination" if config.get("bracketType") == "double" else "Single-elimination"
-
-    gf_bo = config.get("matchBestOfPerRound", {}).get("2", 5)
-
-    other_bo = 3
-    for round_id, bo in config.get("matchBestOfPerRound", {}).items():
-        if round_id != "2":
-            other_bo = bo
-            break
+    
+    rounds_bo = get_rounds_bo(matches, config)
 
     return {
         "name": data.get("title", ""),
@@ -420,9 +423,8 @@ def get_tournament_data(url):
         "has_third_place_match": config.get("consolationMatch", False),
         "payout_distribution": payout_distribution,
         "format_type": format_type,
-        "grand_final_bo": gf_bo,
+        "rounds_bo": rounds_bo,
         "third_place_match": third_place_match,
-        "other_matches_bo": other_bo,
         "total_teams": total_teams,
         "matches": results_matches,
         "entrant_lookup": entrant_lookup,
