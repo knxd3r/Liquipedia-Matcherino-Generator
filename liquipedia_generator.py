@@ -341,9 +341,9 @@ def generate_page(data):
 
         for player in team["members"]:
             player = sanitize(player)
-            participants += f"  |{{{{Person|{player}|flag=}}}}\n"
+            participants += f"        |{{{{Person|{player}|flag=}}}}\n"
 
-        participants += " }}\n }}\n"
+        participants += "    }}\n}}\n"
 
     participants += "}}"
     bracket = build_bracket(
