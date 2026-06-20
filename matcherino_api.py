@@ -401,6 +401,9 @@ def get_tournament_data(url):
     format_type = "Double-elimination" if config.get("bracketType") == "double" else "Single-elimination"
     
     rounds_bo = get_rounds_bo(matches, config)
+    
+    if len(entrants) >= 8:
+        team_number = len(entrants)
 
     return {
         "name": data.get("title", ""),
@@ -419,7 +422,7 @@ def get_tournament_data(url):
         "facebook": facebook,
         "players": players,
         "total_rounds": total_rounds,
-        "team_number": len(entrants),
+        "team_number": team_number,
         "has_third_place_match": config.get("consolationMatch", False),
         "payout_distribution": payout_distribution,
         "format_type": format_type,
