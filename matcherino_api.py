@@ -60,24 +60,20 @@ REGION_MAP = {
 
 
 def extract_id(url):
-
+    if not url.startswith("https://matcherino.com/"):
+        raise ValueError("Only Matcherino URLs are allowed")
+    
     match = re.search(r"/tournaments/(\d+)", url)
     if match:
         return match.group(1)
-
+    
     if "/t/" in url:
-
-        html = requests.get(url).text
-
-        match = re.search(
-            r'"shortlink":\{.*?"resourceId":"(\d+)"',
-            html
-        )
-
+        html = requests.get(url, timeout=10).text
+        match = re.search(r'"shortlink":\{.*?"resourceId":"(\d+)"', html)
         if match:
             return match.group(1)
-
-    raise ValueError("Не удалось определить ID турнира.")
+    
+    raise ValueError("Cannot define tournament ID.")
 
 
 def extract_prizepool(balance):
@@ -101,7 +97,8 @@ def get_tournament_data(url):
     tournament_id = extract_id(url)
 
     info_url = f"https://api.matcherino.com/__api/bounties/findById?id={tournament_id}"
-    response = requests.get(info_url)
+    response = requests.get(info_url, timeout=10)
+    response.raise_for_status()
     data = response.json()["body"]
 
     organizer = data.get("creator", {}).get("displayName", "")
@@ -114,7 +111,8 @@ def get_tournament_data(url):
         f"?bountyId={tournament_id}&id=0&isAdmin=false"
     )
 
-    bracket_response = requests.get(bracket_url)
+    bracket_response = requests.get(bracket_url, timeout=10)
+    bracket_response.raise_for_status()
     bracket_body = bracket_response.json()["body"]
 
     bracket_data = bracket_body[0] if isinstance(bracket_body, list) else bracket_body
@@ -192,10 +190,10 @@ def get_tournament_data(url):
 
         results_matches.append(match_copy)
 
-        results_matches.sort(
-        key=lambda m: (
-            m.get("roundNum", 0),
-            m.get("id", 0)
+    results_matches.sort(
+    key=lambda m: (
+        m.get("roundNum", 0),
+        m.get("id", 0)
     )
 )
 
@@ -402,8 +400,7 @@ def get_tournament_data(url):
     
     rounds_bo = get_rounds_bo(matches, config)
     
-    if len(entrants) >= 8:
-        team_number = len(entrants)
+    qualified_team_number = len(qualified_entrant_ids) if len(qualified_entrant_ids) == 8 else None
 
     return {
         "name": data.get("title", ""),
@@ -422,7 +419,8 @@ def get_tournament_data(url):
         "facebook": facebook,
         "players": players,
         "total_rounds": total_rounds,
-        "team_number": team_number,
+        "team_number": len(entrants),
+        "qualified_team_number": qualified_team_number,
         "has_qualified_teams": len(qualified_entrant_ids) == 8,
         "has_third_place_match": config.get("consolationMatch", False),
         "payout_distribution": payout_distribution,
