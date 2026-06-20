@@ -65,11 +65,16 @@ def build_format(data):
 
     groups.append((start, end, current_bo))
     
-    for start, end, bo in groups:
-        if start == end:
-            format_text += f"* {start} is {{{{Abbr/Bo{bo}xBo3}}}}\n"
-        else:
-            format_text += f"* All matches from {start} to {end} are {{{{Abbr/Bo{bo}xBo3}}}}\n"
+    if len(groups) == 1:
+        _, _, bo = groups[0]
+        format_text += f"* All matches are {{{{Abbr/Bo{bo}xBo3}}}}\n"
+    
+    else:
+        for start, end, bo in groups:
+            if start == end:
+                format_text += f"* {start} is {{{{Abbr/Bo{bo}xBo3}}}}\n"
+            else:
+                format_text += f"* All matches from {start} to {end} are {{{{Abbr/Bo{bo}xBo3}}}}\n"
 
     return format_text
 
