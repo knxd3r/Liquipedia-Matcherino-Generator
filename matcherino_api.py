@@ -423,6 +423,7 @@ def get_tournament_data(url):
         "players": players,
         "total_rounds": total_rounds,
         "team_number": team_number,
+        "has_qualified_teams": len(qualified_entrant_ids) == 8,
         "has_third_place_match": config.get("consolationMatch", False),
         "payout_distribution": payout_distribution,
         "format_type": format_type,
