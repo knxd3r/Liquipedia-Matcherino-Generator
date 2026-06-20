@@ -1,0 +1,64 @@
+|{{Opponent|TBD|import=false
+    |players={{Persons
+        |{{Person|	|flag=}}
+        |{{Person|	|flag=}}
+        |{{Person|	|flag=}}
+    }}
+    |qualification={{Qualification|method=|url=|text=|placement=}}
+}}
+|{{Opponent|TBD|import=false
+    |players={{Persons
+        |{{Person|	|flag=}}
+        |{{Person|	|flag=}}
+        |{{Person|	|flag=}}
+    }}
+    |qualification={{Qualification|method=|url=|text=|placement=}}
+}}
+|{{Opponent|TBD|import=false
+    |players={{Persons
+        |{{Person|	|flag=}}
+        |{{Person|	|flag=}}
+        |{{Person|	|flag=}}
+    }}
+    |qualification={{Qualification|method=|url=|text=|placement=}}
+}}
+|{{Opponent|TBD|import=false
+    |players={{Persons
+        |{{Person|	|flag=}}
+        |{{Person|	|flag=}}
+        |{{Person|	|flag=}}
+    }}
+    |qualification={{Qualification|method=|url=|text=|placement=}}
+}}
+|{{Opponent|TBD|import=false
+    |players={{Persons
+        |{{Person|	|flag=}}
+        |{{Person|	|flag=}}
+        |{{Person|	|flag=}}
+    }}
+    |qualification={{Qualification|method=|url=|text=|placement=}}
+}}
+|{{Opponent|TBD|import=false
+    |players={{Persons
+        |{{Person|	|flag=}}
+        |{{Person|	|flag=}}
+        |{{Person|	|flag=}}
+    }}
+    |qualification={{Qualification|method=|url=|text=|placement=}}
+}}
+|{{Opponent|TBD|import=false
+    |players={{Persons
+        |{{Person|	|flag=}}
+        |{{Person|	|flag=}}
+        |{{Person|	|flag=}}
+    }}
+    |qualification={{Qualification|method=|url=|text=|placement=}}
+}}
+|{{Opponent|TBD|import=false
+    |players={{Persons
+        |{{Person|	|flag=}}
+        |{{Person|	|flag=}}
+        |{{Person|	|flag=}}
+    }}
+    |qualification={{Qualification|method=|url=|text=|placement=}}
+}}

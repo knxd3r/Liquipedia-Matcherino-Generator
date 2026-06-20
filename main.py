@@ -1,4 +1,5 @@
 import logging
+import traceback
 from matcherino_api import get_tournament_data
 from liquipedia_generator import generate_page
 
@@ -7,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 def main(debug=False):
-    url = input("Input Matcherino link: ").strip()
+    url = input("Input Matcherino link: ").rstrip("/").removesuffix("/overview")
 
     if not url.startswith("http"):
         logger.error("Wrong URL")
@@ -17,8 +18,9 @@ def main(debug=False):
 
     try:
         data = get_tournament_data(url)
-    except Exception as e:
-        logger.error(f"Error with data recieving: {e}")
+    except Exception:
+        logger.exception("Error with data recieving")
+        traceback.print_exc()
         return 1
 
     if debug:
