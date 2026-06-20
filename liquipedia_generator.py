@@ -8,12 +8,29 @@ def generate_bracket_id():
     return ''.join(random.choice(chars) for _ in range(10))
 
 def sanitize(text: str) -> str:
-    """
-    MediaWiki safe string:
-    """
     if text is None:
         return "TBD"
-    return str(text).replace("|", "{{!}}")
+    
+    text = str(text)
+    
+    if "|" in text:
+        text = text.split("|", 1)[-1].strip()
+    
+    replacements = {
+        "=": "{{=}}",
+        "{": "&#123;",
+        "}": "&#125;",
+        "[": "&#91;",
+        "]": "&#93;",
+        "\n": " ",
+        "\r": " ",
+        "\t": " ",
+    }
+    
+    for old, new in replacements.items():
+        text = text.replace(old, new)
+    
+    return text
 
 def build_format(data):
     format_text = f"* {data['format_type']} bracket\n"
@@ -329,7 +346,7 @@ def generate_page(data):
     )
 
     participants = "{{TeamParticipants\n"
-    if data["has_qualified_teams"]:
+    if data["has_qualified_teams"] and data["qualified_team_number"] is not None:
         for team in data["players"]:
             team_name = sanitize(team["team"])
 
@@ -345,8 +362,30 @@ def generate_page(data):
 
             participants += "    }}\n}}\n"
     else:
-        with open("participants_table.txt", "r", encoding="utf-8") as f:
-            participants += f.read()
+        try:
+            with open("participants_table.txt", "r", encoding="utf-8") as f:
+                participants += f.read()
+        except FileNotFoundError:
+            print("File participants_table.txt not found")
+            answer = input("Download from repository? (y/n): ").strip().lower()
+            
+            if answer == 'y':
+                url = "https://raw.githubusercontent.com/knxd3r/Liquipedia-Matcherino-Generator/main/participants_table.txt"
+                try:
+                    response = requests.get(url, timeout=10)
+                    response.raise_for_status()
+                    
+                    with open("participants_table.txt", "w", encoding="utf-8") as f:
+                        f.write(response.text)
+                    
+                    print("File downloaded. Please restart the program.")
+                    sys.exit(0)
+                    
+                except Exception as e:
+                    print(f"Download error: {e}")
+                    sys.exit(1)
+            else:
+                print("Continuing without participants_table.txt, for correct page generation download file.")
     participants += "\n}}"
 
     bracket = build_bracket(
