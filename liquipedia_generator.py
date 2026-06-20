@@ -398,7 +398,7 @@ def generate_page(data):
 ===Prize Pool===
 {prize_distribution}
 
-==Participants==
+==Participants (Top 8)==
 {participants}
 
 ==Results (Top 8)==
