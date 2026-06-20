@@ -84,7 +84,7 @@ def extract_prizepool(balance):
     return round(int(balance) / 100, 2)
 
 def get_rounds_bo(matches, config):
-    bo_per_round = config.get("matchBestOfPerRound", {})
+    bo_per_round = config.get("matchBestOfPerRound") or {}
     total_rounds = max(
         (m.get("roundNum", 0) for m in matches),
         default=0
