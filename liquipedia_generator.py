@@ -329,23 +329,26 @@ def generate_page(data):
     )
 
     participants = "{{TeamParticipants\n"
+    if data["has_qualified_teams"]:
+        for team in data["players"]:
+            team_name = sanitize(team["team"])
 
-    for team in data["players"]:
-        team_name = sanitize(team["team"])
+            participants += (
+                f"|{{{{Opponent|{team_name}|import=false|qualification="
+                f"{{{{Qualification|method=|url=|text=|placement=}}}}\n"
+                f"    |players={{{{Persons\n"
+            )
 
-        participants += (
-            f"|{{{{Opponent|{team_name}|import=false|qualification="
-            f"{{{{Qualification|method=|url=|text=|placement=}}}}\n"
-            f"    |players={{{{Persons\n"
-        )
+            for player in team["members"]:
+                player = sanitize(player)
+                participants += f"        |{{{{Person|{player}|flag=}}}}\n"
 
-        for player in team["members"]:
-            player = sanitize(player)
-            participants += f"        |{{{{Person|{player}|flag=}}}}\n"
+            participants += "    }}\n}}\n"
+    else:
+        with open("participants_table.txt", "r", encoding="utf-8") as f:
+            participants += f.read()
+    participants += "\n}}"
 
-        participants += "    }}\n}}\n"
-
-    participants += "}}"
     bracket = build_bracket(
         data["matches"],
         data["entrant_lookup"],
